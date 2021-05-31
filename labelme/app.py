@@ -1985,6 +1985,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lastOpenDir = dirpath
         self.filename = None
         self.fileListWidget.clear()
+        labels = self.scanAllLabels(dirpath)
         for filename in self.scanAllImages(dirpath):
             if pattern and pattern not in filename:
                 continue
@@ -1994,7 +1995,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 label_file = osp.join(self.output_dir, label_file_without_path)
             item = QtWidgets.QListWidgetItem(filename)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(
+            if label_file in labels and LabelFile.is_label_file(
                 label_file
             ):
                 item.setCheckState(Qt.Checked)
@@ -2017,3 +2018,18 @@ class MainWindow(QtWidgets.QMainWindow):
                     images.append(relativePath)
         images.sort(key=lambda x: x.lower())
         return images
+
+    # speed up image import by finding all labels beforehand
+    def scanAllLabels(self, folderPath):
+        labels = set()
+        if self.output_dir: # all labels are directly under output_dir
+            for file in os.scandir(self.output_dir):
+                if file.is_file() and file.path.lower().endswith(".json"):
+                    labels.add(file.path)
+        else:
+            for root, dirs, files in os.walk(folderPath):
+                for file in files:
+                    if file.lower().endswith(".json"):
+                        relativePath = osp.join(root, file)
+                        labels.add(relativePath)
+        return labels
